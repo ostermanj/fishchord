@@ -1,20 +1,14 @@
-.background {
-  fill: #eee; }
+body {
+  font: 2px sans-serif; }
 
-line {
-  stroke: #fff; }
+.group-tick line {
+  stroke: #000;
+  stroke-width: 0.06px; }
 
-text.active {
-  fill: black;
-  font-weight: bold; }
+.ribbons {
+  fill-opacity: 0.67; }
 
-text {
-  font-size: 7px;
-  fill: #767676; }
-
-select.has-error {
-  border-color: red;
-  border-width: 2px;
-  opacity: 0.5; }
+.arcs, .ribbons {
+  stroke-width: 0.06px; }
 
 /*# sourceMappingURL=main.css.map */

@@ -47,6 +47,19 @@ import { arrayFind } from '../js-exports/polyfills';
   var fishNodes = null,
       fishLinks = null;
 
+  var margin = { // expressed as percentages
+      top:0,
+      right:0,
+      bottom:0,
+      left:0
+    },
+    width = 100 - margin.right - margin.left,
+    height = 100 - margin.top - margin.bottom,
+    outerRadius = Math.min(width, height) * 0.5 - 3,
+    innerRadius = outerRadius - 3;
+
+  var threshold = 20;
+
   d3.csv('matrix-headers.csv', function(data){
     console.log(data);
     fishLinks = data;
@@ -120,15 +133,93 @@ import { arrayFind } from '../js-exports/polyfills';
    // console.log(matrix);
     // Convert links to matrix; count character occurrences.
     network.links.forEach(function(link) {
-      matrix[link.source][link.target] += link.value;
-      matrix[link.target][link.source] += link.value;
-      matrix[link.source][link.source] += link.value;
-      matrix[link.target][link.target] += link.value;
-      nodes[link.source].count += link.value;
-      nodes[link.target].count += link.value;
+      matrix[link.source][link.target] = link.value;
+      matrix[link.target][link.source] = link.value;
+     // matrix[link.source][link.source] = link.value;
+     // matrix[link.target][link.target] = link.value;
+     // nodes[link.source].count += link.value;
+     // nodes[link.target].count += link.value;
     });
 
     console.log(matrix);
+    var svg = d3.select('body')
+      .append('svg')
+      .attr('width', '100%')
+      .attr('xmlns','http://www.w3.org/2000/svg')
+      .attr('version','1.1')
+      .attr('viewBox', '0 0 100 100')
+      .append('g')
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+    var chord = d3.chord()
+      .padAngle(0)
+      .sortSubgroups(d3.descending);
+
+    console.log(chord(matrix));
+    var arc = d3.arc()
+        .innerRadius(innerRadius)
+        .outerRadius(outerRadius);
+
+    var ribbon = d3.ribbon()
+        .radius(innerRadius);
+
+    var color = d3.scaleOrdinal(d3.schemeCategory20);
+    var formatValue = d3.formatPrefix(",.0", 1e3);
+
+    var g = svg.append("g")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
+    .datum(chord(matrix));
+
+    var group = g.append("g")
+        .attr("class", "groups")
+      .selectAll("g")
+      .data(function(chords) { console.log(chords); return chords.groups; })
+      .enter().append("g");
+
+    group.append("path")
+        .attr('class','arcs')
+        .style("fill", function(d) { console.log(d); return color(d.index); })
+        .style("stroke", function(d) { return d3.rgb(color(d.index)).darker(); })
+        .attr("d", arc);
+
+    var groupTick = group.selectAll(".group-tick")
+      .data(function(d) { return groupTicks(d, 1e3); })
+      .enter().append("g")
+        .attr("class", "group-tick")
+        .attr("transform", function(d) { return "rotate(" + (d.angle * 180 / Math.PI - 90) + ") translate(" + outerRadius + ",0)"; });
+
+    groupTick.append("line")
+        .attr("x2", 0.6);
+
+groupTick
+  .filter(function(d) { return d.value % 5e3 === 0; })
+  .append("text")
+    .attr("x", 0.8)
+    .attr("dy", ".35em")
+    .attr("transform", function(d) { return d.angle > Math.PI ? "rotate(180) translate(-16)" : null; })
+    .style("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
+    .text(function(d) { return formatValue(d.value); });
+
+g.append("g")
+    .attr("class", "ribbons")
+    .selectAll("path")
+    .data(function(chords) { return chords; })
+    .enter().append("path")
+      .attr("d", d => {
+        if ( d.source.value > threshold || d.target.value > threshold ){
+          return ribbon(d);
+        }
+      })
+      .style("fill", function(d) { return color(d.target.index); })
+      .style("stroke", function(d) { return d3.rgb(color(d.target.index)).darker(); });
+
+// Returns an array of tick angles and values for a given group and step.
+function groupTicks(d, step) {
+  var k = (d.endAngle - d.startAngle) / d.value;
+  return d3.range(0, d.value, step).map(function(value) {
+    return {value: value, angle: value * k + d.startAngle};
+  });
+}
 
    /* function setOrder(primary,secondary){
       function returnOrder(field){
